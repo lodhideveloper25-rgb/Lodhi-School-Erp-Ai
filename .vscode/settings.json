@@ -1,0 +1,5 @@
+{
+  // Workaround for Windows terminal ConPTY launch issues in some VS Code environments
+  "terminal.integrated.windowsEnableConpty": false,
+  "terminal.external.windowsExec": "C:\\Windows\\System32\\cmd.exe"
+}
