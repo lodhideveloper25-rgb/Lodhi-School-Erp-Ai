@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Building2, User, Mail, Phone, Key, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
+import useAuthStore from '../store/authStore';
 
 const RegisterSchool = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +17,7 @@ const RegisterSchool = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const setUser = useAuthStore((state) => state.setUser);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,7 +37,7 @@ const RegisterSchool = () => {
       const res = await api.post('/auth/register', formData);
       
       // Auto login after registration
-      localStorage.setItem('user', JSON.stringify(res.data.admin));
+      setUser(res.data.admin);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to register school');
