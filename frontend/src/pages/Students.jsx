@@ -1,171 +1,289 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Plus, Search, Filter, Download, MoreVertical,
-  Edit, Trash2, Eye, UserPlus, GraduationCap
-} from 'lucide-react';
+import { Search, Plus, Filter, Trash2, Edit, Eye, User as UserIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const Students = () => {
-  const [students, setStudents] = useState([]);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Filters state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [classFilter, setClassFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
-  const filteredStudents = students.filter((student) => {
-    const query = searchTerm.trim().toLowerCase();
-    const matchesSearch = !query ||
-      student.name.toLowerCase().includes(query) ||
-      student.admissionNo.toLowerCase().includes(query) ||
-      student.parentName.toLowerCase().includes(query) ||
-      student.class.toLowerCase().includes(query);
-
-    const matchesStatus = statusFilter === 'All' || student.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  // Add Student Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    rollNo: '', studentName: '', className: '', section: '', gender: '', contact: '', familyId: '', status: 'Active'
   });
 
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      // Fetching from GenericData model where moduleName="Students"
+      const response = await api.get('/data/Students');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching students', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const { data } = await api.get('/students');
-        const mapped = data.map(s => ({
-          id: s._id,
-          name: s.user?.name || '',
-          admissionNo: s.admissionNo || '',
-          class: s.class?.name || '',
-          section: s.section || '',
-          parentName: s.parentName || '',
-          status: s.isActive === false ? 'Inactive' : 'Active',
-          image: s.user?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.user?.name || '')}`
-        }));
-        setStudents(mapped);
-      } catch (err) {
-        console.error('Failed to load students', err);
-      }
-    };
-    fetchStudents();
+    fetchData();
   }, []);
 
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!formData.rollNo || !formData.studentName) return alert('Roll Number and Name are required');
+    try {
+      const payload = {
+        title: formData.studentName,
+        description: 'Student Record',
+        metadata: formData,
+        status: formData.status
+      };
+      await api.post('/data/Students', payload);
+      setFormData({ rollNo: '', studentName: '', className: '', section: '', gender: '', contact: '', familyId: '', status: 'Active' });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this student?')) {
+      try {
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting student', error);
+      }
+    }
+  };
+
+  // Filtering logic
+  const filteredData = data.filter(item => {
+    const meta = item.metadata || {};
+    const nameMatch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (meta.rollNo || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const classMatch = classFilter ? meta.className === classFilter : true;
+    const sectionMatch = sectionFilter ? meta.section === sectionFilter : true;
+    const statusMatch = statusFilter ? (item.status || 'Active') === statusFilter : true;
+    return nameMatch && classMatch && sectionMatch && statusMatch;
+  });
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <GraduationCap className="text-indigo-500" size={32} />
-            Student Management
-          </h1>
-          <p className="text-slate-400 mt-1">Manage admissions, profiles, and student records.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Student Directory</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage and view all enrolled students</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium border border-slate-700 hover:bg-slate-700 transition-all flex items-center gap-2">
-            <Download size={18} /> Export
-          </button>
-          <button className="gradient-btn flex items-center gap-2 shadow-lg shadow-indigo-600/20">
-            <Plus size={18} /> New Admission
-          </button>
-        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+        >
+          <Plus size={16} /> Add Student
+        </button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-2 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+      {/* Filters Card */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-wrap gap-4 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
-            placeholder="Search by name, admission no, or parent..."
-            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-indigo-500 transition-all"
+            placeholder="Search by Name or Roll No..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
           />
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-          <select className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white appearance-none focus:outline-none focus:border-indigo-500 transition-all">
-            <option>All Classes</option>
-            <option>Class 10</option>
-            <option>Class 9</option>
-          </select>
-        </div>
-        <div className="relative">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 px-4 text-white appearance-none focus:outline-none focus:border-indigo-500 transition-all"
-          >
-            <option value="All">Status: All</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
+        
+        <select 
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:border-blue-500 min-w-[120px]"
+          value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
+        >
+          <option value="">All Classes</option>
+          <option value="Class 1">Class 1</option>
+          <option value="Class 2">Class 2</option>
+          <option value="Class 3">Class 3</option>
+          <option value="Class 4">Class 4</option>
+          <option value="Class 5">Class 5</option>
+        </select>
+
+        <select 
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:border-blue-500 min-w-[120px]"
+          value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}
+        >
+          <option value="">All Sections</option>
+          <option value="A">Section A</option>
+          <option value="B">Section B</option>
+          <option value="C">Section C</option>
+        </select>
+
+        <select 
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:border-blue-500 min-w-[120px]"
+          value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="Transferred">Transferred</option>
+          <option value="Alumni">Alumni</option>
+        </select>
       </div>
 
-      {/* Table */}
-      <div className="glassmorphism rounded-2xl overflow-hidden border border-slate-800/50">
+      {/* Student List Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider">
-                <th className="px-6 py-4 font-semibold">Student</th>
-                <th className="px-6 py-4 font-semibold">Admission No</th>
-                <th className="px-6 py-4 font-semibold">Class / Sec</th>
-                <th className="px-6 py-4 font-semibold">Parent Details</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold">Roll No</th>
+                <th className="p-4 font-semibold">Student Name</th>
+                <th className="p-4 font-semibold">Class & Sec</th>
+                <th className="p-4 font-semibold">Family ID</th>
+                <th className="p-4 font-semibold">Gender</th>
+                <th className="p-4 font-semibold">Contact</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-800/30 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-700">
-                        <img src={student.image} alt="" className="w-full h-full object-cover" />
-                      </div>
-                      <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{student.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-300 text-sm">{student.admissionNo}</td>
-                  <td className="px-6 py-4">
-                    <span className="bg-indigo-600/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold">
-                      {student.class} - {student.section}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-300 text-sm">{student.parentName}</td>
-                  <td className="px-6 py-4">
-                    <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                      {student.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                       <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                         <Eye size={18} />
-                       </button>
-                       <button className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-600/10 rounded-lg transition-colors">
-                         <Edit size={18} />
-                       </button>
-                       <button className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-colors">
-                         <Trash2 size={18} />
-                       </button>
-                    </div>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center text-slate-500">Loading students...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center text-slate-400">
+                    <UserIcon size={24} className="mx-auto mb-2 opacity-50" />
+                    No students found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredData.map((item) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm font-medium text-blue-600">{item.metadata?.rollNo || 'N/A'}</td>
+                    <td className="p-4 text-sm font-bold text-slate-700">{item.title}</td>
+                    <td className="p-4 text-sm text-slate-600">{item.metadata?.className || 'N/A'} - {item.metadata?.section || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-600">{item.metadata?.familyId || 'None'}</td>
+                    <td className="p-4 text-sm text-slate-600">{item.metadata?.gender || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-600">{item.metadata?.contact || 'N/A'}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 text-xs font-bold rounded ${
+                        (item.status || 'Active') === 'Active' ? 'bg-green-100 text-green-700' :
+                        (item.status || 'Active') === 'Transferred' ? 'bg-orange-100 text-orange-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => navigate('/student-profile')}
+                          className="p-1.5 text-blue-500 hover:bg-blue-50 rounded" title="View Profile"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button className="p-1.5 text-green-500 hover:bg-green-50 rounded" title="Edit Student">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Delete">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        <div className="px-6 py-4 bg-slate-900/30 border-t border-slate-800/50 flex items-center justify-between">
-          <p className="text-xs text-slate-500">Showing 1-10 of 120 students</p>
-          <div className="flex gap-2">
-             <button className="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:text-white disabled:opacity-50 text-xs">Previous</button>
-             <button className="px-3 py-1 bg-indigo-600 text-white rounded text-xs">1</button>
-             <button className="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:text-white text-xs">2</button>
-             <button className="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:text-white text-xs">Next</button>
+      {/* Add Student Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800">Add New Student</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <form onSubmit={handleSave} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
+                  <input type="text" value={formData.rollNo} onChange={e => setFormData({...formData, rollNo: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Student Name</label>
+                  <input type="text" value={formData.studentName} onChange={e => setFormData({...formData, studentName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                  <select value={formData.className} onChange={e => setFormData({...formData, className: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="">Select</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Section</label>
+                  <select value={formData.section} onChange={e => setFormData({...formData, section: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="">Select</option>
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                    <option value="C">Section C</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
+                  <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Contact</label>
+                  <input type="text" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Family ID (for Siblings)</label>
+                  <input type="text" value={formData.familyId} onChange={e => setFormData({...formData, familyId: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. FAM-001" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                    <option value="Active">Active</option>
+                    <option value="Transferred">Transferred</option>
+                    <option value="Alumni">Alumni</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Save Student</button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 };

@@ -1,102 +1,248 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Filter, X, Trash2, PieChart as PageIcon, UploadCloud } from 'lucide-react';
 import api from '../services/api';
-import { DollarSign, Plus, TrendingUp, TrendingDown, Filter } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Finance = () => {
-  const [transactions, setTransactions] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({ txType: '', category: '', amount: '', date: new Date().toISOString().split('T')[0], });
+  
+  // Ref for file inputs
+  const fileInputRef = useRef(null);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/data/Finance');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchFinances = async () => {
-      try {
-        const { data } = await api.get('/operations/finance');
-        const mapped = data.map(f => ({ _id: f._id, date: new Date(f.date).toISOString().split('T')[0], title: f.title, category: f.category, amount: f.amount, type: f.type || f.type }));
-        setTransactions(mapped);
-      } catch (err) {
-        console.error('Failed to load finances', err);
-      }
-    };
-    fetchFinances();
+    fetchData();
   }, []);
 
+  const handleSave = async () => {
+    try {
+      // Basic validation for the first field
+      const firstField = 'txType';
+      if (!formData[firstField]) return alert('Transaction Type is required');
+      
+      const payload = {
+        title: formData[firstField],
+        description: 'Record created dynamically',
+        ...formData
+      };
+
+      await api.post('/data/Finance', payload);
+      setFormData({ txType: '', category: '', amount: '', date: new Date().toISOString().split('T')[0], });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting data', error);
+      }
+    }
+  };
+
+  const handleFileChange = (e, fieldName) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({...formData, [fieldName]: e.target.files[0].name}); // store file name as mock
+    }
+  };
+
+  const filteredData = data.filter(item => {
+    const searchTarget = item.title?.toLowerCase() || '';
+    return searchTarget.includes(searchTerm.toLowerCase());
+  });
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <DollarSign className="text-emerald-500" />
-            Finance & Accounting
-          </h2>
-          <p className="text-slate-400 text-sm mt-1">Track school income, expenses, and net profit</p>
+          <h1 className="text-2xl font-bold text-slate-800">Finance</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage finance records</p>
         </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-500 border border-red-500/50 rounded-lg flex items-center gap-2 transition-colors">
-            <Plus size={18} />
-            Add Expense
-          </button>
-          <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-2 transition-colors">
-            <Plus size={18} />
-            Add Income
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="glass p-6 rounded-2xl border border-emerald-500/30 relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
-          <p className="text-slate-400 text-sm flex items-center gap-2"><TrendingUp size={16} className="text-emerald-400"/> Total Income</p>
-          <h3 className="text-3xl font-bold text-emerald-400 mt-2">$48,500</h3>
-        </div>
-        <div className="glass p-6 rounded-2xl border border-red-500/30 relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all"></div>
-          <p className="text-slate-400 text-sm flex items-center gap-2"><TrendingDown size={16} className="text-red-400"/> Total Expenses</p>
-          <h3 className="text-3xl font-bold text-red-400 mt-2">$12,800</h3>
-        </div>
-        <div className="glass p-6 rounded-2xl border border-blue-500/30 relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
-          <p className="text-slate-400 text-sm flex items-center gap-2"><DollarSign size={16} className="text-blue-400"/> Net Profit</p>
-          <h3 className="text-3xl font-bold text-blue-400 mt-2">$35,700</h3>
-        </div>
-      </div>
-
-      <div className="glass rounded-2xl border border-slate-700/50 overflow-hidden">
-        <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/30">
-          <h3 className="text-lg font-bold text-white">Recent Transactions</h3>
-          <button className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
             <Filter size={16} /> Filter
           </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add New
+          </button>
         </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium">
+            Total Records: {filteredData.length}
+          </div>
+        </div>
+
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-800/50 border-b border-slate-700/50">
-                <th className="p-4 text-sm font-medium text-slate-300">Date</th>
-                <th className="p-4 text-sm font-medium text-slate-300">Title</th>
-                <th className="p-4 text-sm font-medium text-slate-300">Category</th>
-                <th className="p-4 text-sm font-medium text-slate-300 text-right">Amount</th>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold w-16">ID</th>
+                <th className="p-4 font-semibold">Transaction Type</th>
+                <th className="p-4 font-semibold">Category</th>
+                <th className="p-4 font-semibold">Amount</th>
+                <th className="p-4 font-semibold">Date</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((t, index) => (
-                <motion.tr 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  key={t._id} 
-                  className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors"
-                >
-                  <td className="p-4 text-sm text-slate-400">{t.date}</td>
-                  <td className="p-4 text-sm font-medium text-white">{t.title}</td>
-                  <td className="p-4 text-sm text-slate-400">{t.category}</td>
-                  <td className={`p-4 text-sm font-bold text-right ${t.type === 'Income' ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {t.type === 'Income' ? '+' : '-'}${t.amount.toLocaleString()}
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center text-slate-500">Loading data...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <PageIcon size={24} className="text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium text-base">No records found</p>
+                      <p className="text-sm mt-1">Click "Add New" to create the first record.</p>
+                    </div>
                   </td>
-                </motion.tr>
-              ))}
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600 font-mono text-xs">#{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.txType || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.category || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm font-semibold text-slate-700">{item.metadata?.amount || '0'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.date ? new Date(item.metadata.date).toLocaleDateString() : 'N/A'}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Add New Finance</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Transaction Type</label>
+                <select 
+                  value={formData.txType}
+                  onChange={(e) => setFormData({...formData, txType: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Transaction Type</option>
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                <input 
+                  type="text" 
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Category..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
+                <input 
+                  type="number" 
+                  value={formData.amount}
+                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Amount ($)..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                <input 
+                  type="date" 
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Date..." 
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 mt-auto">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Save Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="flex min-h-screen bg-dark-bg text-dark-text overflow-hidden">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 overflow-hidden">
       {/* Sidebar */}
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
@@ -19,8 +19,8 @@ const MainLayout = () => {
           <Outlet />
         </main>
 
-        <footer className="p-4 text-center text-xs text-slate-500 glassmorphism border-0 border-t">
-          &copy; 2024 LODH School ERP AI. All Rights Reserved. Premium Edition.
+        <footer className="p-4 text-center text-xs text-slate-500 bg-white border-t border-slate-200">
+          &copy; 2024 Smart Angels Grammar School. All Rights Reserved.
         </footer>
       </div>
     </div>

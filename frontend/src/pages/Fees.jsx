@@ -1,174 +1,249 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Filter, X, Trash2, DollarSign as PageIcon, UploadCloud } from 'lucide-react';
 import api from '../services/api';
-import {
-  CreditCard, Search, Download, Printer,
-  Plus, DollarSign, AlertCircle, FileText,
-  Filter, CheckCircle
-} from 'lucide-react';
 
 const Fees = () => {
-   const [fees, setFees] = useState([]);
-   const [searchTerm, setSearchTerm] = useState('');
-   const [statusFilter, setStatusFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({ feeType: '', amount: '', frequency: '', description: '', });
+  
+  // Ref for file inputs
+  const fileInputRef = useRef(null);
 
-   const filteredFees = fees.filter((fee) => {
-      const query = searchTerm.trim().toLowerCase();
-      const matchesSearch = !query ||
-         fee.studentName.toLowerCase().includes(query) ||
-         fee.admissionNo.toLowerCase().includes(query) ||
-         fee.month.toLowerCase().includes(query);
-      const matchesStatus = statusFilter === 'All' || fee.status === statusFilter;
-      return matchesSearch && matchesStatus;
-   });
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/data/Fees');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-   useEffect(() => {
-      const fetchFees = async () => {
-         try {
-            const { data } = await api.get('/fees');
-            // backend returns fees with populated student/user
-            const mapped = data.map(f => ({
-               id: f._id,
-               studentName: f.student?.user?.name || 'Unknown',
-               admissionNo: f.student?.admissionNo || '',
-               month: f.month,
-               amount: f.amount,
-               paid: f.paidAmount || f.paid || 0,
-               status: f.status,
-               date: f.createdAt
-            }));
-            setFees(mapped);
-         } catch (err) {
-            console.error('Failed to load fees', err);
-         }
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      // Basic validation for the first field
+      const firstField = 'feeType';
+      if (!formData[firstField]) return alert('Fee Type is required');
+      
+      const payload = {
+        title: formData[firstField],
+        description: 'Record created dynamically',
+        ...formData
       };
-      fetchFees();
-   }, []);
+
+      await api.post('/data/Fees', payload);
+      setFormData({ feeType: '', amount: '', frequency: '', description: '', });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting data', error);
+      }
+    }
+  };
+
+  const handleFileChange = (e, fieldName) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({...formData, [fieldName]: e.target.files[0].name}); // store file name as mock
+    }
+  };
+
+  const filteredData = data.filter(item => {
+    const searchTarget = item.title?.toLowerCase() || '';
+    return searchTarget.includes(searchTerm.toLowerCase());
+  });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <CreditCard className="text-indigo-500" size={32} />
-            Fee Management
-          </h1>
-          <p className="text-slate-400 mt-1">Collect fees, generate vouchers, and track payments.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Fees</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage fees records</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium border border-slate-700 hover:bg-slate-700 transition-all flex items-center gap-2">
-            <FileText size={18} /> Bulk Vouchers
+          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
+            <Filter size={16} /> Filter
           </button>
-          <button className="gradient-btn flex items-center gap-2 shadow-lg shadow-indigo-600/20">
-            <Plus size={18} /> Collect Fee
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add New
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <div className="glassmorphism p-6 rounded-2xl flex items-center gap-6">
-            <div className="w-14 h-14 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center shadow-inner">
-               <DollarSign size={28} />
-            </div>
-            <div>
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Collected</p>
-               <p className="text-2xl font-bold text-white">$12,450</p>
-               <span className="text-[10px] text-green-400 font-bold">+12.5% from last month</span>
-            </div>
-         </div>
-         <div className="glassmorphism p-6 rounded-2xl flex items-center gap-6">
-            <div className="w-14 h-14 bg-amber-600/20 text-amber-400 rounded-2xl flex items-center justify-center shadow-inner">
-               <AlertCircle size={28} />
-            </div>
-            <div>
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Pending</p>
-               <p className="text-2xl font-bold text-white">$4,200</p>
-               <span className="text-[10px] text-amber-400 font-bold">18 students remaining</span>
-            </div>
-         </div>
-         <div className="glassmorphism p-6 rounded-2xl flex items-center gap-6">
-            <div className="w-14 h-14 bg-emerald-600/20 text-emerald-400 rounded-2xl flex items-center justify-center shadow-inner">
-               <CheckCircle size={28} />
-            </div>
-            <div>
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Collection Rate</p>
-               <p className="text-2xl font-bold text-white">84%</p>
-               <div className="w-32 h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-[84%]"></div>
-               </div>
-            </div>
-         </div>
-      </div>
-
-      <div className="glassmorphism p-4 rounded-2xl flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px] relative">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-           <input
-             type="text"
-             value={searchTerm}
-             onChange={(e) => setSearchTerm(e.target.value)}
-             placeholder="Search by name or voucher..."
-             className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500"
-           />
+      {/* Main Content Area */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium">
+            Total Records: {filteredData.length}
+          </div>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-indigo-500"
-        >
-           <option value="All">Filter: Status</option>
-           <option value="Paid">Paid</option>
-           <option value="Unpaid">Unpaid</option>
-           <option value="Partial">Partial</option>
-        </select>
-        <button className="p-2.5 bg-slate-800 text-slate-400 rounded-xl border border-slate-700 hover:text-white"><Download size={20}/></button>
-        <button className="p-2.5 bg-slate-800 text-slate-400 rounded-xl border border-slate-700 hover:text-white"><Printer size={20}/></button>
-      </div>
 
-      <div className="glassmorphism rounded-2xl overflow-hidden border border-slate-800/50">
-         <table className="w-full text-left">
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
-               <tr className="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Student</th>
-                  <th className="px-6 py-4 font-semibold">Month</th>
-                  <th className="px-6 py-4 font-semibold text-right">Amount</th>
-                  <th className="px-6 py-4 font-semibold text-right">Paid</th>
-                  <th className="px-6 py-4 font-semibold text-center">Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-               </tr>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold w-16">ID</th>
+                <th className="p-4 font-semibold">Fee Type</th>
+                <th className="p-4 font-semibold">Amount</th>
+                <th className="p-4 font-semibold">Frequency</th>
+                <th className="p-4 font-semibold">Description</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
-               {filteredFees.map((f) => (
-                  <tr key={f.id} className="hover:bg-slate-800/20 transition-colors">
-                     <td className="px-6 py-4">
-                        <div>
-                           <p className="text-white font-medium">{f.student}</p>
-                           <p className="text-[10px] text-slate-500">{f.admissionNo}</p>
-                        </div>
-                     </td>
-                     <td className="px-6 py-4 text-slate-300 text-sm">{f.month}</td>
-                     <td className="px-6 py-4 text-right text-white font-bold">${f.amount}</td>
-                     <td className="px-6 py-4 text-right text-indigo-400 font-bold">${f.paid}</td>
-                     <td className="px-6 py-4 text-center">
-                        <span className={`
-                           px-3 py-1 rounded-full text-[10px] font-bold uppercase
-                           ${f.status === 'Paid' ? 'bg-green-600/10 text-green-400' :
-                             f.status === 'Unpaid' ? 'bg-red-600/10 text-red-400' :
-                             'bg-amber-600/10 text-amber-400'}
-                        `}>
-                           {f.status}
-                        </span>
-                     </td>
-                     <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                           <button className="p-2 text-indigo-400 hover:bg-indigo-600/10 rounded-lg" title="Print Receipt"><Printer size={16} /></button>
-                           <button className="p-2 text-slate-400 hover:bg-slate-700 rounded-lg" title="View History"><FileText size={16} /></button>
-                        </div>
-                     </td>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center text-slate-500">Loading data...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <PageIcon size={24} className="text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium text-base">No records found</p>
+                      <p className="text-sm mt-1">Click "Add New" to create the first record.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600 font-mono text-xs">#{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.feeType || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm font-semibold text-slate-700">{item.metadata?.amount || '0'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.frequency || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.description || item.title || 'N/A'}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
-               ))}
+                ))
+              )}
             </tbody>
-         </table>
+          </table>
+        </div>
       </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Add New Fees</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fee Type</label>
+                <input 
+                  type="text" 
+                  value={formData.feeType}
+                  onChange={(e) => setFormData({...formData, feeType: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Fee Type..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
+                <input 
+                  type="number" 
+                  value={formData.amount}
+                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Amount ($)..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Frequency</label>
+                <select 
+                  value={formData.frequency}
+                  onChange={(e) => setFormData({...formData, frequency: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Frequency</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Yearly">Yearly</option>
+                  <option value="One-time">One-time</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <input 
+                  type="text" 
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Description..." 
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 mt-auto">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Save Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

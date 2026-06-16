@@ -1,168 +1,258 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Filter, X, Trash2, Calendar as PageIcon, UploadCloud } from 'lucide-react';
 import api from '../services/api';
-import {
-  CalendarCheck, Search, Filter, CheckCircle2,
-  XCircle, Clock, Save, ChevronLeft, ChevronRight, QrCode
-} from 'lucide-react';
 
 const Attendance = () => {
-  const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({ attendanceDate: new Date().toISOString().split('T')[0], className: '', totalStudents: '', present: '', absent: '', });
+  
+  // Ref for file inputs
+  const fileInputRef = useRef(null);
 
-  const [students, setStudents] = useState([]);
-
-  const toggleStatus = (id, newStatus) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: newStatus } : s));
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/data/Attendance');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    const fetchClasses = async () => {
-      try {
-        const { data } = await api.get('/classes');
-        setClasses(data.map(c => ({ id: c._id, name: c.name })));
-        if (data.length) setSelectedClass(data[0]._id);
-      } catch (err) {
-        console.error('Failed to load classes', err);
-      }
-    };
-    fetchClasses();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      if (!selectedClass || !date) return;
+  const handleSave = async () => {
+    try {
+      // Basic validation for the first field
+      const firstField = 'attendanceDate';
+      if (!formData[firstField]) return alert('Date is required');
+      
+      const payload = {
+        title: formData[firstField],
+        description: 'Record created dynamically',
+        ...formData
+      };
+
+      await api.post('/data/Attendance', payload);
+      setFormData({ attendanceDate: new Date().toISOString().split('T')[0], className: '', totalStudents: '', present: '', absent: '', });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this record?')) {
       try {
-        const { data } = await api.get(`/attendance?classId=${selectedClass}&date=${date}`);
-        // data is report array: { studentId, name, status, remarks }
-        const mapped = data.map((s, idx) => ({ id: s.studentId || idx, roll: idx + 1, name: s.name, status: s.status, remarks: s.remarks }));
-        setStudents(mapped);
-      } catch (err) {
-        console.error('Failed to load attendance', err);
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting data', error);
       }
-    };
-    fetchAttendance();
-  }, [selectedClass, date]);
+    }
+  };
+
+  const handleFileChange = (e, fieldName) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({...formData, [fieldName]: e.target.files[0].name}); // store file name as mock
+    }
+  };
+
+  const filteredData = data.filter(item => {
+    const searchTarget = item.title?.toLowerCase() || '';
+    return searchTarget.includes(searchTerm.toLowerCase());
+  });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <CalendarCheck className="text-indigo-500" size={32} />
-            Daily Attendance
-          </h1>
-          <p className="text-slate-400 mt-1">Mark and manage student attendance records.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Attendance</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage attendance records</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium border border-slate-700 hover:bg-slate-700 transition-all flex items-center gap-2">
-            <QrCode size={18} /> QR Scanner
+          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
+            <Filter size={16} /> Filter
           </button>
-          <button className="gradient-btn flex items-center gap-2 shadow-lg shadow-indigo-600/20">
-            <Save size={18} /> Submit Attendance
-          </button>
-        </div>
-      </div>
-
-      <div className="glassmorphism p-6 rounded-2xl grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Class</label>
-          <select
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500"
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <option>10-A</option>
-            <option>10-B</option>
-            <option>9-A</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Attendance Date</label>
-          <input
-            type="date"
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-1 lg:col-span-2 flex items-end">
-           <div className="flex gap-4 w-full">
-             <div className="flex-1 p-3 bg-indigo-600/10 rounded-xl border border-indigo-600/20 text-center">
-               <p className="text-[10px] font-bold text-indigo-400 uppercase">Present</p>
-               <p className="text-xl font-bold text-white">42</p>
-             </div>
-             <div className="flex-1 p-3 bg-red-600/10 rounded-xl border border-red-600/20 text-center">
-               <p className="text-[10px] font-bold text-red-400 uppercase">Absent</p>
-               <p className="text-xl font-bold text-white">03</p>
-             </div>
-             <div className="flex-1 p-3 bg-amber-600/10 rounded-xl border border-amber-600/20 text-center">
-               <p className="text-[10px] font-bold text-amber-400 uppercase">Late</p>
-               <p className="text-xl font-bold text-white">01</p>
-             </div>
-           </div>
+            <Plus size={16} /> Add New
+          </button>
         </div>
       </div>
 
-      <div className="glassmorphism rounded-2xl overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider">
-              <th className="px-6 py-4 font-semibold w-24">Roll No</th>
-              <th className="px-6 py-4 font-semibold">Student Name</th>
-              <th className="px-6 py-4 font-semibold">Current Status</th>
-              <th className="px-6 py-4 font-semibold text-right">Mark Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/50">
-            {students.map((student) => (
-              <tr key={student.id} className="hover:bg-slate-800/20 transition-colors">
-                <td className="px-6 py-4 text-slate-400 font-bold">{student.roll}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-indigo-400 border border-slate-700">
-                      {student.name.charAt(0)}
-                    </div>
-                    <span className="text-white font-medium">{student.name}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`
-                    px-3 py-1 rounded-full text-[10px] font-bold uppercase
-                    ${student.status === 'Present' ? 'bg-green-600/10 text-green-400' :
-                      student.status === 'Absent' ? 'bg-red-600/10 text-red-400' :
-                      'bg-amber-600/10 text-amber-400'}
-                  `}>
-                    {student.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                   <div className="flex items-center justify-end gap-2">
-                     <button
-                        onClick={() => toggleStatus(student.id, 'Present')}
-                        className={`p-2 rounded-lg transition-all ${student.status === 'Present' ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-green-400'}`}
-                     >
-                       <CheckCircle2 size={18} />
-                     </button>
-                     <button
-                        onClick={() => toggleStatus(student.id, 'Absent')}
-                        className={`p-2 rounded-lg transition-all ${student.status === 'Absent' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-red-400'}`}
-                     >
-                       <XCircle size={18} />
-                     </button>
-                     <button
-                        onClick={() => toggleStatus(student.id, 'Late')}
-                        className={`p-2 rounded-lg transition-all ${student.status === 'Late' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-amber-400'}`}
-                     >
-                       <Clock size={18} />
-                     </button>
-                   </div>
-                </td>
+      {/* Main Content Area */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium">
+            Total Records: {filteredData.length}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold w-16">ID</th>
+                <th className="p-4 font-semibold">Date</th>
+                <th className="p-4 font-semibold">Class</th>
+                <th className="p-4 font-semibold">Total Students</th>
+                <th className="p-4 font-semibold">Present</th>
+                <th className="p-4 font-semibold">Absent</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center text-slate-500">Loading data...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <PageIcon size={24} className="text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium text-base">No records found</p>
+                      <p className="text-sm mt-1">Click "Add New" to create the first record.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600 font-mono text-xs">#{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.attendanceDate ? new Date(item.metadata.attendanceDate).toLocaleDateString() : 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.className || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm font-semibold text-slate-700">{item.metadata?.totalStudents || '0'}</td>
+                    <td className="p-4 text-sm font-semibold text-slate-700">{item.metadata?.present || '0'}</td>
+                    <td className="p-4 text-sm font-semibold text-slate-700">{item.metadata?.absent || '0'}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Add New Attendance</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                <input 
+                  type="date" 
+                  value={formData.attendanceDate}
+                  onChange={(e) => setFormData({...formData, attendanceDate: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Date..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                <input 
+                  type="text" 
+                  value={formData.className}
+                  onChange={(e) => setFormData({...formData, className: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Class..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Total Students</label>
+                <input 
+                  type="number" 
+                  value={formData.totalStudents}
+                  onChange={(e) => setFormData({...formData, totalStudents: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Total Students..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Present Count</label>
+                <input 
+                  type="number" 
+                  value={formData.present}
+                  onChange={(e) => setFormData({...formData, present: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Present Count..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Absent Count</label>
+                <input 
+                  type="number" 
+                  value={formData.absent}
+                  onChange={(e) => setFormData({...formData, absent: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Absent Count..." 
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 mt-auto">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Save Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

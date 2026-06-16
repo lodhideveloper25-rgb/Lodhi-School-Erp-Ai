@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, UserCheck, UserPlus, BookOpen,
   TrendingUp, Wallet, ArrowUpRight, ArrowDownRight,
-  Calendar, Clock, Award, Megaphone
+  Calendar, Clock, Award, Megaphone, Backpack, ShoppingCart, 
+  ThumbsUp, Eye, Search, BarChart3
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -11,22 +12,32 @@ import {
 } from 'recharts';
 import api from '../services/api';
 
-const StatCard = ({ title, value, icon, trend, color }) => (
-  <div className="glassmorphism p-6 rounded-2xl relative overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
-    <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 ${color}`}></div>
-    <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl bg-opacity-20 ${color} text-white`}>
-        {icon}
-      </div>
-      {trend && (
-        <span className={`flex items-center text-xs font-bold ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-          {Math.abs(trend)}%
-        </span>
-      )}
+const WhiteStatCard = ({ title, value, subtext, icon, colorClass }) => (
+  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+    <div className={`w-14 h-14 rounded-lg flex items-center justify-center text-white ${colorClass}`}>
+      {icon}
     </div>
-    <h3 className="text-slate-400 text-sm font-medium mb-1">{title}</h3>
-    <p className="text-2xl font-bold text-white">{value}</p>
+    <div className="flex-1">
+      <h3 className="text-slate-600 text-[13px] font-medium">{title}</h3>
+      <p className="text-xl font-bold text-slate-800">{value}</p>
+      {subtext && <p className="text-[10px] text-slate-500 mt-1">{subtext}</p>}
+    </div>
+  </div>
+);
+
+const ColorStatCard = ({ title, value, subtext, icon, bgClass, extra }) => (
+  <div className={`${bgClass} p-5 rounded-xl shadow-sm text-white flex flex-col justify-between hover:-translate-y-1 transition-transform`}>
+    <div className="flex items-start justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className="opacity-80">{icon}</div>
+        <h3 className="text-[15px] font-medium opacity-90">{title}</h3>
+      </div>
+    </div>
+    <div className="mt-2">
+      <p className="text-2xl font-bold mb-1 tracking-wide">{value}</p>
+      {subtext && <p className="text-[11px] opacity-80">{subtext}</p>}
+      {extra && <div className="mt-3">{extra}</div>}
+    </div>
   </div>
 );
 
@@ -84,65 +95,142 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard Overview</h1>
-          <p className="text-slate-400 mt-1">Real-time school performance analytics and statistics.</p>
+          <h1 className="text-2xl font-light text-slate-800 tracking-wide">Smart Angels</h1>
+          <h1 className="text-2xl font-light text-slate-800 tracking-wide">Grammar School</h1>
         </div>
-        <div className="flex items-center gap-3">
-           <button className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-2">
-             <Calendar size={16} /> Last 30 Days
-           </button>
-           <button className="gradient-btn text-sm">
-             Generate Report
-           </button>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center text-sm">
+            <span className="text-blue-500 font-medium">Home</span>
+            <span className="mx-2 text-slate-400">/</span>
+            <span className="text-slate-500">Dashboard</span>
+          </div>
+          <div className="flex gap-2">
+            <button className="bg-[#007bff] hover:bg-blue-600 text-white px-4 py-1.5 rounded flex items-center gap-2 text-sm font-medium transition-colors">
+              <Eye size={16} /> Show Data
+            </button>
+            <button className="bg-[#007bff] hover:bg-blue-600 text-white px-3 py-1.5 rounded flex items-center justify-center transition-colors">
+              <Search size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Students" value={metrics ? metrics.totalStudents : '...'} icon={<Users size={24} />} trend={metrics ? 12 : 0} color="bg-blue-600" />
-        <StatCard title="Total Teachers" value={metrics ? metrics.totalTeachers : '...'} icon={<UserCheck size={24} />} trend={metrics ? 4 : 0} color="bg-indigo-600" />
-        <StatCard title="Active Classes" value={metrics ? metrics.totalClasses : '...'} icon={<BookOpen size={24} />} trend={metrics ? 0 : 0} color="bg-purple-600" />
-        <StatCard title="Monthly Revenue" value={metrics ? `$${metrics.monthlyFeeCollection}` : '...'} icon={<Wallet size={24} />} trend={metrics ? 8.2 : 0} color="bg-emerald-600" />
+      {/* Row 1 Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <WhiteStatCard 
+          title="Total Classes" 
+          value={metrics ? metrics.totalClasses : '****'} 
+          subtext="****"
+          icon={<Backpack size={28} />} 
+          colorClass="bg-[#00c0ef]" 
+        />
+        <WhiteStatCard 
+          title="Students" 
+          value={metrics ? metrics.totalStudents : '****'} 
+          subtext="T: **** | D: ****"
+          icon={<Users size={28} />} 
+          colorClass="bg-[#dd4b39]" 
+        />
+        <WhiteStatCard 
+          title="Revenue Today" 
+          value="****" 
+          subtext="****"
+          icon={<ShoppingCart size={28} />} 
+          colorClass="bg-[#00a65a]" 
+        />
+        <WhiteStatCard 
+          title="Staff" 
+          value={metrics ? metrics.totalTeachers : '****'} 
+          subtext="****"
+          icon={<ThumbsUp size={28} />} 
+          colorClass="bg-[#f39c12]" 
+        />
+      </div>
+
+      {/* Row 2 Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <ColorStatCard 
+          title="Net Profit" 
+          value="****" 
+          subtext="This Month's Balance"
+          icon={<Wallet size={20} />} 
+          bgClass="bg-[#28a745]" 
+        />
+        <ColorStatCard 
+          title="Expenses" 
+          value="****" 
+          subtext="Total Outgoings"
+          icon={<ShoppingCart size={20} />} 
+          bgClass="bg-[#dc3545]" 
+        />
+        <ColorStatCard 
+          title="Revenue this month" 
+          value="****" 
+          subtext="Total revenue"
+          icon={<Users size={20} />} 
+          bgClass="bg-[#20c997]" 
+        />
+        <ColorStatCard 
+          title="Collection" 
+          value="****" 
+          icon={<BarChart3 size={20} />} 
+          bgClass="bg-[#6f42c1]" 
+          extra={
+            <div className="space-y-1">
+              <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-white h-full w-[30%] rounded-full"></div>
+              </div>
+              <div className="text-[10px] opacity-80 flex justify-between mt-1">
+                <span>Active Expected: ****</span>
+              </div>
+              <div className="text-[10px] opacity-80 flex justify-between">
+                <span>Deactive Expected: ****</span>
+              </div>
+            </div>
+          }
+        />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
         {/* Main Area Chart */}
-        <div className="xl:col-span-2 glassmorphism p-6 rounded-2xl">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-bold text-white">Income vs Expenses</h3>
+        <div className="xl:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-6">
+            <button className="bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
+              Show Chart Data
+            </button>
             <div className="flex items-center gap-4">
-               <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-                 <div className="w-3 h-3 bg-indigo-600 rounded-full"></div> Income
+               <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                 <div className="w-3 h-3 bg-[#6366f1] rounded-full"></div> Income
                </div>
-               <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-                 <div className="w-3 h-3 bg-pink-600 rounded-full"></div> Expense
+               <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                 <div className="w-3 h-3 bg-[#f43f5e] rounded-full"></div> Expense
                </div>
             </div>
           </div>
-          <div className="h-[350px] w-full">
+          <div className="h-[300px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={areaData}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
                     <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={-10} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#161937', border: '1px solid #334155', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#0f172a' }}
                 />
                 <Area type="monotone" dataKey="income" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
                 <Area type="monotone" dataKey="expense" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorExpense)" />
@@ -152,9 +240,9 @@ const Dashboard = () => {
         </div>
 
         {/* Pie Chart / Attendance */}
-        <div className="glassmorphism p-6 rounded-2xl">
-          <h3 className="text-lg font-bold text-white mb-8">Attendance Overview</h3>
-          <div className="h-[250px]">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-800 mb-6">Attendance Overview</h3>
+          <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -172,66 +260,18 @@ const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-4 mt-6">
              {pieData.map((item) => (
                <div key={item.name} className="flex items-center justify-between">
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div>
-                   <span className="text-sm text-slate-400">{item.name}</span>
+                   <span className="text-sm font-medium text-slate-600">{item.name}</span>
                  </div>
-                 <span className="text-sm font-bold text-white">{item.value}%</span>
+                 <span className="text-sm font-bold text-slate-800">{item.value}%</span>
                </div>
              ))}
           </div>
         </div>
-      </div>
-
-      {/* Quick Action Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         <div className="glassmorphism p-6 rounded-2xl">
-           <h3 className="text-lg font-bold text-white mb-6">Recent Notices</h3>
-           <div className="space-y-4">
-              {notices.length > 0 ? notices.map((notice) => (
-                <div key={notice._id} className="flex gap-4 p-4 bg-slate-900/40 rounded-xl hover:bg-slate-800/40 transition-colors">
-                  <div className="min-w-[48px] h-12 bg-indigo-600/20 text-indigo-400 rounded-lg flex items-center justify-center">
-                    <Megaphone size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{notice.title}</h4>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{notice.description}</p>
-                    <span className="text-[10px] text-slate-600 mt-2 block">{new Date(notice.date).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-slate-400">No notices available at the moment.</div>
-              )}
-           </div>
-         </div>
-
-         <div className="glassmorphism p-6 rounded-2xl">
-           <h3 className="text-lg font-bold text-white mb-6">Upcoming Exams</h3>
-           <div className="space-y-4">
-              {exams.length > 0 ? exams.map((exam) => (
-                <div key={exam._id} className="flex items-center justify-between p-4 bg-slate-900/40 rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-purple-600/20 text-purple-400 rounded-lg flex items-center justify-center">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{exam.subject}</h4>
-                      <p className="text-xs text-slate-500">{exam.className || exam.class || 'Class not set'}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-indigo-400">{exam.date ? new Date(exam.date).toLocaleDateString() : 'TBD'}</p>
-                    <p className="text-[10px] text-slate-600">{exam.startTime || 'Time TBD'}</p>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-slate-400">No upcoming exams scheduled.</div>
-              )}
-           </div>
-         </div>
       </div>
     </div>
   );

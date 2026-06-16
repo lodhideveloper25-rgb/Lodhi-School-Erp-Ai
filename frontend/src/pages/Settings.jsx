@@ -1,198 +1,225 @@
-import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Globe, Lock, Bell, Palette, Database, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Filter, X, Trash2, Settings as PageIcon, UploadCloud } from 'lucide-react';
 import api from '../services/api';
 
-const SettingItem = ({ icon, title, desc, action }) => (
-  <div className="flex items-center justify-between p-6 hover:bg-slate-800/20 transition-all group">
-    <div className="flex items-center gap-4">
-       <div className="p-3 bg-slate-900 border border-slate-800 text-slate-400 rounded-xl group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all">
-         {icon}
-       </div>
-       <div>
-         <h4 className="text-white font-bold">{title}</h4>
-         <p className="text-xs text-slate-500 mt-1">{desc}</p>
-       </div>
-    </div>
-    {action}
-  </div>
-);
+const SettingsPage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({ settingName: '', value: '', });
+  
+  // Ref for file inputs
+  const fileInputRef = useRef(null);
 
-const Settings = () => {
-  const [settings, setSettings] = useState({
-    name: '',
-    address: '',
-    contactEmail: '',
-    contactPhone: '',
-    logoUrl: ''
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const { data } = await api.get('/settings');
-        setSettings({
-          name: data.name || '',
-          address: data.address || '',
-          contactEmail: data.contactEmail || '',
-          contactPhone: data.contactPhone || '',
-          logoUrl: data.logoUrl || ''
-        });
-      } catch (err) {
-        console.error('Failed to load settings', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSettings();
-  }, []);
-
-  const handleChange = (field, value) => {
-    setSettings((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage('');
+  const fetchData = async () => {
     try {
-      const { data } = await api.put('/settings', settings);
-      setSettings({
-        name: data.name || '',
-        address: data.address || '',
-        contactEmail: data.contactEmail || '',
-        contactPhone: data.contactPhone || '',
-        logoUrl: data.logoUrl || ''
-      });
-      setMessage('Settings saved successfully.');
-    } catch (err) {
-      console.error('Failed to save settings', err);
-      setMessage('Unable to save settings.');
+      setIsLoading(true);
+      const response = await api.get('/data/Settings');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
     } finally {
-      setSaving(false);
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      // Basic validation for the first field
+      const firstField = 'settingName';
+      if (!formData[firstField]) return alert('Setting Name (e.g. Currency) is required');
+      
+      const payload = {
+        title: formData[firstField],
+        description: 'Record created dynamically',
+        ...formData
+      };
+
+      await api.post('/data/Settings', payload);
+      setFormData({ settingName: '', value: '', });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting data', error);
+      }
+    }
+  };
+
+  const handleFileChange = (e, fieldName) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({...formData, [fieldName]: e.target.files[0].name}); // store file name as mock
+    }
+  };
+
+  const filteredData = data.filter(item => {
+    const searchTarget = item.title?.toLowerCase() || '';
+    return searchTarget.includes(searchTerm.toLowerCase());
+  });
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-          <SettingsIcon className="text-indigo-500" size={32} />
-          System Settings
-        </h1>
-        <p className="text-slate-400 mt-1">Configure global school parameters and security preferences.</p>
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Settings</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage settings records</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
+            <Filter size={16} /> Filter
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add New
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="glassmorphism rounded-3xl overflow-hidden border border-slate-800/50">
-            <div className="px-6 py-4 bg-slate-900/50 border-b border-slate-800/50">
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">School Profile</h3>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block text-sm text-slate-300">
-                  School Name
-                  <input
-                    type="text"
-                    value={settings.name}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                    className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </label>
-                <label className="block text-sm text-slate-300">
-                  Contact Email
-                  <input
-                    type="email"
-                    value={settings.contactEmail}
-                    onChange={(e) => handleChange('contactEmail', e.target.value)}
-                    className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </label>
-              </div>
-
-              <label className="block text-sm text-slate-300">
-                Contact Phone
-                <input
-                  type="text"
-                  value={settings.contactPhone}
-                  onChange={(e) => handleChange('contactPhone', e.target.value)}
-                  className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="block text-sm text-slate-300">
-                Address
-                <textarea
-                  value={settings.address}
-                  onChange={(e) => handleChange('address', e.target.value)}
-                  className="mt-2 w-full min-h-[120px] bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="block text-sm text-slate-300">
-                Logo URL
-                <input
-                  type="text"
-                  value={settings.logoUrl}
-                  onChange={(e) => handleChange('logoUrl', e.target.value)}
-                  className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Settings'}
-                </button>
-                <p className="text-sm text-slate-400">{message}</p>
-              </div>
-            </div>
+      {/* Main Content Area */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium">
+            Total Records: {filteredData.length}
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="glassmorphism p-8 rounded-3xl text-center">
-            <div className="w-20 h-20 bg-indigo-600/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
-              <ShieldCheck size={40} />
-            </div>
-            <h4 className="text-white font-bold mb-2">System Status</h4>
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs text-green-400 font-bold uppercase">All Services Operational</span>
-            </div>
-            <div className="space-y-3 text-left">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Database</span>
-                <span className="text-slate-300 font-bold">Connected</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">API Latency</span>
-                <span className="text-slate-300 font-bold">24ms</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Storage Used</span>
-                <span className="text-slate-300 font-bold">1.2 GB / 5 GB</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 bg-indigo-600 rounded-3xl text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
-              <SettingsIcon size={80} />
-            </div>
-            <h4 className="text-lg font-bold mb-2">Need Help?</h4>
-            <p className="text-xs text-indigo-100 mb-6 leading-relaxed">Check our official documentation or contact system support for assistance.</p>
-            <button className="w-full bg-white text-indigo-600 py-3 rounded-xl font-bold text-sm shadow-xl">Get Support</button>
-          </div>
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold w-16">ID</th>
+                <th className="p-4 font-semibold">Setting Name</th>
+                <th className="p-4 font-semibold">Value</th>
+                <th className="p-4 font-semibold">Last Updated</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="p-8 text-center text-slate-500">Loading data...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <PageIcon size={24} className="text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium text-base">No records found</p>
+                      <p className="text-sm mt-1">Click "Add New" to create the first record.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600 font-mono text-xs">#{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.settingName || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.value || item.title || 'N/A'}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Add New Settings</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Setting Name (e.g. Currency)</label>
+                <input 
+                  type="text" 
+                  value={formData.settingName}
+                  onChange={(e) => setFormData({...formData, settingName: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Setting Name (e.g. Currency)..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Setting Value</label>
+                <input 
+                  type="text" 
+                  value={formData.value}
+                  onChange={(e) => setFormData({...formData, value: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Setting Value..." 
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 mt-auto">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Save Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Settings;
+export default SettingsPage;

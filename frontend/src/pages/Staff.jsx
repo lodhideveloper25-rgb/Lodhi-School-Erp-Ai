@@ -1,83 +1,250 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Filter, X, Trash2, Users as PageIcon, UploadCloud } from 'lucide-react';
 import api from '../services/api';
-import { UserCog, Plus, Mail, Phone, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Staff = () => {
-  const [staff, setStaff] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({ staffId: '', name: '', role: '', department: '', });
+  
+  // Ref for file inputs
+  const fileInputRef = useRef(null);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/data/Staff');
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStaff = async () => {
-      try {
-        const { data } = await api.get('/staff');
-        const mapped = data.map(s => ({
-          _id: s._id,
-          name: s.userId?.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-          role: s.role,
-          department: s.department || '',
-          email: s.userId?.email || '',
-          phone: s.phone || '',
-          profileImage: s.userId?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.userId?.name || (s.firstName || ''))}`
-        }));
-        setStaff(mapped);
-      } catch (err) {
-        console.error('Failed to load staff', err);
-      }
-    };
-    fetchStaff();
+    fetchData();
   }, []);
 
+  const handleSave = async () => {
+    try {
+      // Basic validation for the first field
+      const firstField = 'staffId';
+      if (!formData[firstField]) return alert('Staff ID is required');
+      
+      const payload = {
+        title: formData[firstField],
+        description: 'Record created dynamically',
+        ...formData
+      };
+
+      await api.post('/data/Staff', payload);
+      setFormData({ staffId: '', name: '', role: '', department: '', });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving data');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        await api.delete(`/data/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting data', error);
+      }
+    }
+  };
+
+  const handleFileChange = (e, fieldName) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({...formData, [fieldName]: e.target.files[0].name}); // store file name as mock
+    }
+  };
+
+  const filteredData = data.filter(item => {
+    const searchTarget = item.title?.toLowerCase() || '';
+    return searchTarget.includes(searchTerm.toLowerCase());
+  });
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <UserCog className="text-rose-500" />
-            Staff Management
-          </h2>
-          <p className="text-slate-400 text-sm mt-1">Manage non-teaching administrative and support staff</p>
+          <h1 className="text-2xl font-bold text-slate-800">Staff</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage staff records</p>
         </div>
-        <button className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg flex items-center gap-2 transition-colors">
-          <Plus size={18} />
-          Add Staff
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {staff.map((member, index) => (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            key={member._id}
-            className="glass p-6 rounded-2xl border border-slate-700/50 flex flex-col items-center text-center hover:border-rose-500/50 transition-all"
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
+            <Filter size={16} /> Filter
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#007bff] hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-2xl font-bold text-slate-300 mb-4 overflow-hidden relative group">
-               <div className="absolute inset-0 bg-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-               {member.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            
-            <h3 className="text-lg font-bold text-white leading-tight">{member.name}</h3>
-            <p className="text-sm font-medium text-rose-400 mt-1">{member.role}</p>
-            
-            <div className="flex items-center gap-1 mt-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
-              <ShieldCheck size={12} className="text-slate-400" />
-              <span className="text-xs text-slate-400 font-medium">{member.department}</span>
-            </div>
-
-            <div className="w-full mt-6 space-y-3 pt-4 border-t border-slate-700/50">
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-300">
-                <Mail size={14} className="text-slate-500"/>
-                {member.email}
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-300">
-                <Phone size={14} className="text-slate-500"/>
-                {member.phone}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            <Plus size={16} /> Add New
+          </button>
+        </div>
       </div>
+
+      {/* Main Content Area */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium">
+            Total Records: {filteredData.length}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-sm">
+                <th className="p-4 font-semibold w-16">ID</th>
+                <th className="p-4 font-semibold">Staff ID</th>
+                <th className="p-4 font-semibold">Name</th>
+                <th className="p-4 font-semibold">Role</th>
+                <th className="p-4 font-semibold">Department</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center text-slate-500">Loading data...</td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <PageIcon size={24} className="text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium text-base">No records found</p>
+                      <p className="text-sm mt-1">Click "Add New" to create the first record.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={item._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600 font-mono text-xs">#{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.staffId || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.name || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.role || item.title || 'N/A'}</td>
+                    <td className="p-4 text-sm text-slate-700">{item.metadata?.department || item.title || 'N/A'}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        {item.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleDelete(item._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Add New Staff</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Staff ID</label>
+                <input 
+                  type="text" 
+                  value={formData.staffId}
+                  onChange={(e) => setFormData({...formData, staffId: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Staff ID..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Full Name..." 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Designation / Role</label>
+                <select 
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Designation / Role</option>
+                  <option value="Clerk">Clerk</option>
+                  <option value="Librarian">Librarian</option>
+                  <option value="Guard">Guard</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+                <input 
+                  type="text" 
+                  value={formData.department}
+                  onChange={(e) => setFormData({...formData, department: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Enter Department..." 
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 mt-auto">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Save Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

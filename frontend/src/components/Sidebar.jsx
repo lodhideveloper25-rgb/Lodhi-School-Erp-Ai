@@ -1,126 +1,211 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  LayoutDashboard, Users, UserSquare2, BookOpen, GraduationCap,
-  CalendarCheck, CreditCard, ClipboardList, BookMarked, Settings,
+  LayoutDashboard, Users, BookOpen,
+  CalendarCheck, CreditCard, ClipboardList, Settings,
   LogOut, Search, ChevronLeft, ChevronRight, MessageSquare,
-  Wallet, Truck, Home, Megaphone, QrCode, Award, Badge
+  Wallet, Archive, Megaphone, Award, Badge, ChevronDown,
+  Briefcase, Banknote, Car, Building, UserCog, UserCheck, FileText, Bell, Monitor
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMenus, setExpandedMenus] = useState({
+    'General Settings': false,
+    'Single student': false
+  });
+  
   const { user, logout } = useAuthStore();
 
-  const normalizedRole = user?.role?.toString().toLowerCase().replace(/\s+/g, '');
+  const toggleSubmenu = (menuName) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuName]: !prev[menuName]
+    }));
+  };
+
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/', roles: ['superadmin', 'admin', 'principal', 'teacher', 'accountant', 'parent', 'student', 'receptionist'] },
-    { name: 'Students', icon: <GraduationCap size={20} />, path: '/students', roles: ['superadmin', 'admin', 'principal', 'teacher', 'receptionist'] },
-    { name: 'Teachers', icon: <Users size={20} />, path: '/teachers', roles: ['superadmin', 'admin', 'principal'] },
-    { name: 'Staff', icon: <UserSquare2 size={20} />, path: '/staff', roles: ['superadmin', 'admin'] },
-    { name: 'Classes', icon: <BookOpen size={20} />, path: '/classes', roles: ['superadmin', 'admin', 'principal'] },
-    { name: 'Attendance', icon: <CalendarCheck size={20} />, path: '/attendance', roles: ['superadmin', 'admin', 'principal', 'teacher', 'receptionist'] },
-    { name: 'Fees', icon: <CreditCard size={20} />, path: '/fees', roles: ['superadmin', 'admin', 'accountant'] },
-    { name: 'Exams', icon: <ClipboardList size={20} />, path: '/exams', roles: ['superadmin', 'admin', 'principal', 'teacher'] },
-    { name: 'Homework', icon: <BookMarked size={20} />, path: '/homework', roles: ['superadmin', 'admin', 'principal', 'teacher', 'student', 'parent'] },
-    { name: 'Parents', icon: <Users size={20} />, path: '/parents', roles: ['superadmin', 'admin', 'principal', 'teacher'] },
-    { name: 'Certificates', icon: <Award size={20} />, path: '/certificates', roles: ['superadmin', 'admin', 'principal'] },
-    { name: 'ID Cards', icon: <Badge size={20} />, path: '/idcards', roles: ['superadmin', 'admin', 'principal'] },
-    { name: 'Finance', icon: <Wallet size={20} />, path: '/finance', roles: ['superadmin', 'admin', 'accountant'] },
-    { name: 'Inventory', icon: <Truck size={20} />, path: '/inventory', roles: ['superadmin', 'admin', 'accountant'] },
-    { name: 'Library', icon: <BookOpen size={20} />, path: '/library', roles: ['superadmin', 'admin', 'librarian', 'teacher', 'student', 'parent'] },
-    { name: 'Transport', icon: <Truck size={20} />, path: '/transport', roles: ['superadmin', 'admin', 'receptionist'] },
-    { name: 'Notices', icon: <Megaphone size={20} />, path: '/notices', roles: ['superadmin', 'admin', 'principal', 'teacher', 'parent', 'student'] },
-    { name: 'WhatsApp QR', icon: <QrCode size={20} />, path: '/whatsapp', roles: ['superadmin', 'admin'] },
-    { name: 'Reports', icon: <ClipboardList size={20} />, path: '/reports', roles: ['superadmin', 'admin', 'principal', 'teacher', 'accountant'] },
-    { name: 'Settings', icon: <Settings size={20} />, path: '/settings', roles: ['superadmin', 'admin'] },
+    { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
+    { 
+      name: 'Billing', 
+      icon: <Briefcase size={20} />, 
+      path: '#',
+      subItems: ['Invoices']
+    },
+    { 
+      name: 'Other income', 
+      icon: <Car size={20} />, 
+      path: '#',
+      subItems: ['Other Income Category', 'Add Other Income']
+    },
+    { name: 'Staff roles', icon: <Briefcase size={20} />, path: '/staff-roles' },
+    { 
+      name: 'General Settings', 
+      icon: <Settings size={20} />, 
+      path: '#',
+      subItems: [
+        'Institute Profile', 'Remove student', 'Change Password', 'Add Holidays',
+        'Sessions', 'Bulk Import History', 'Student Promote', 'Grading',
+        'Social Media', 'Make Exam Live', 'Fee Head', 'Gallery Parent Portal',
+        'Live Attendance Machine', 'Parent Chat', 'Upload Photo', 'Speaker',
+        'Voucher Head Transfer', 'Bulk Update Single Column'
+      ]
+    },
+    { name: 'Certificate', icon: <Award size={20} />, path: '/certificates' },
+    { 
+      name: 'Single student', 
+      icon: <UserCheck size={20} />, 
+      path: '#',
+      subItems: [
+        'Profile', 'Collect Fee', 'Quick voucher generate', 'Voucher print',
+        'Student Ledger old', 'Student Ledger new', 'Edit', 'Receipts',
+        'Payment History', 'Id card', 'Attendance', 'Generate certificate',
+        'Mark Sheet', 'Message', 'Family Ledger'
+      ]
+    },
+    { name: 'Stock & inventory', icon: <Settings size={20} />, path: '/inventory' },
+    { name: 'Manage Classes', icon: <Building size={20} />, path: '/classes' },
+    { name: 'Family', icon: <Users size={20} />, path: '/family' },
+    { name: 'Expense', icon: <CreditCard size={20} />, path: '/expense' },
+    { name: 'Manage Students', icon: <Users size={20} />, path: '/students' },
+    { name: 'Manage Staff', icon: <UserCog size={20} />, path: '/staff' },
+    { name: 'Student Attendance', icon: <CalendarCheck size={20} />, path: '/attendance' },
+    { name: 'Finance', icon: <Banknote size={20} />, path: '/finance' },
+    { name: 'Message Box', icon: <MessageSquare size={20} />, path: '/messages' },
+    { name: 'Exams', icon: <ClipboardList size={20} />, path: '/exams' },
+    { name: 'Id cards', icon: <Badge size={20} />, path: '/idcards' },
+    { name: 'Home work', icon: <BookOpen size={20} />, path: '/homework' },
+    { name: 'Staff Attendance', icon: <UserCheck size={20} />, path: '/staff-attendance' },
+    { name: 'Reports', icon: <FileText size={20} />, path: '/reports' },
+    { name: 'WhatsApp', icon: <MessageSquare size={20} />, path: '/whatsapp' },
   ];
 
   const filteredItems = menuItems.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) && item.roles.includes(normalizedRole)
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-full bg-dark-sidebar border-r border-slate-800 transition-all duration-300 z-50 flex flex-col ${isOpen ? 'w-64' : 'w-20'}`}
+      className={`fixed top-0 left-0 h-full bg-[#111111] border-r border-slate-800 transition-all duration-300 z-50 flex flex-col ${isOpen ? 'w-64' : 'w-20'}`}
     >
-      {/* Brand */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="min-w-[40px] h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
-          <BookOpen className="text-white" size={24} />
-        </div>
-        {isOpen && (
-          <span className="font-bold text-lg text-white truncate">LODH ERP AI</span>
+      {/* Brand Header */}
+      <div className="pt-6 pb-4 flex flex-col items-center justify-center border-b border-slate-800">
+        {isOpen ? (
+          <div className="text-center">
+            <h1 className="text-white font-black text-xl leading-tight tracking-wide uppercase">LODHI<br/>SCHOOL ERP AI</h1>
+            <div className="flex items-center justify-center gap-2 mt-2 text-white">
+              <Bell size={16} />
+              <Badge size={16} />
+              <Monitor size={16} />
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <h1 className="text-white font-black text-sm leading-tight tracking-wide">LS</h1>
+          </div>
         )}
       </div>
 
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="absolute top-7 -right-3 bg-indigo-600 text-white rounded-full p-1 shadow-lg hover:bg-indigo-500 transition-colors"
+        className="absolute top-1/2 -right-3 bg-slate-800 text-white rounded-full p-1 shadow-lg hover:bg-slate-700 transition-colors z-50 border border-slate-700"
       >
         {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
       </button>
 
-      {/* Search */}
+      {/* Search Bar */}
       {isOpen && (
-        <div className="px-4 mb-6">
+        <div className="px-4 py-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Search menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-[#1e1e24] border border-slate-700 rounded py-2 pl-10 pr-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
       )}
 
-      {/* Menu */}
-      <nav className="flex-1 overflow-y-auto px-3 space-y-1">
+      {/* Menu List */}
+      <nav className="flex-1 overflow-y-auto px-2 pb-20 scrollbar-thin space-y-1">
         {filteredItems.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.path}
-            className={({ isActive }) => `
-              flex items-center gap-4 px-3 py-3 rounded-lg transition-all duration-200 group
-              ${isActive ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}
-            `}
-          >
-            <span className={isOpen ? '' : 'mx-auto'}>{item.icon}</span>
-            {isOpen && <span className="text-sm font-medium">{item.name}</span>}
-            {!isOpen && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-indigo-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
-                {item.name}
+          <div key={item.name}>
+            {item.subItems ? (
+              <div 
+                onClick={() => isOpen && toggleSubmenu(item.name)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded transition-all duration-200 cursor-pointer text-slate-300 hover:bg-[#222222] hover:text-white ${expandedMenus[item.name] ? 'bg-[#1a1a1a]' : ''}`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`text-blue-600 ${!isOpen && 'mx-auto'}`}>{item.icon}</span>
+                  {isOpen && <span className="text-[13px] font-semibold">{item.name}</span>}
+                </div>
+                {isOpen && (
+                  <span className="text-slate-500">
+                    {expandedMenus[item.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <NavLink
+                to={item.path}
+                className={({ isActive }) => `
+                  flex items-center justify-between px-3 py-2.5 rounded transition-all duration-200 group
+                  ${isActive ? 'bg-[#2a2a2a] text-white shadow-sm' : 'text-slate-300 hover:bg-[#222222] hover:text-white'}
+                `}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`text-blue-600 ${!isOpen && 'mx-auto'}`}>{item.icon}</span>
+                  {isOpen && <span className="text-[13px] font-semibold">{item.name}</span>}
+                </div>
+                {isOpen && <ChevronRight size={16} className="text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                
+                {!isOpen && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    {item.name}
+                  </div>
+                )}
+              </NavLink>
+            )}
+
+            {/* Nested Menu Items */}
+            {item.subItems && isOpen && expandedMenus[item.name] && (
+              <div className="ml-5 mt-1 border-l-2 border-[#1e50a6] pl-2 space-y-1">
+                {item.subItems.map((sub, idx) => (
+                  <NavLink
+                    key={sub}
+                    to={`/${item.name.toLowerCase().replace(/\s+/g, '-')}/${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                    className={({ isActive }) => `
+                      flex items-center text-[12px] py-2 px-2 rounded
+                      ${isActive ? 'text-white font-medium bg-[#1e1e24]' : 'text-slate-400 hover:text-white hover:bg-[#1e1e24]'}
+                    `}
+                  >
+                    <span className="text-[#1e50a6] font-bold mr-2">{idx + 1}</span> {sub}
+                  </NavLink>
+                ))}
               </div>
             )}
-          </NavLink>
+          </div>
         ))}
       </nav>
-
-      {/* User / Logout */}
-      <div className="p-4 border-t border-slate-800">
-        {isOpen && (
-          <div className="flex items-center gap-3 mb-4 p-2 bg-slate-900/50 rounded-xl">
-             <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
-               {user?.name?.charAt(0)}
-             </div>
-             <div className="flex-1 overflow-hidden">
-               <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-               <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
-             </div>
-          </div>
-        )}
-        <button
-          onClick={logout}
-          className={`flex items-center gap-4 px-3 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-all w-full ${!isOpen && 'justify-center'}`}
-        >
-          <LogOut size={20} />
-          {isOpen && <span className="text-sm font-medium">Logout</span>}
-        </button>
-      </div>
+      
+      {/* Scrollbar styles specific to sidebar */}
+      <style>{`
+        nav::-webkit-scrollbar {
+          width: 4px;
+        }
+        nav::-webkit-scrollbar-track {
+          background: #111;
+        }
+        nav::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 4px;
+        }
+      `}</style>
     </aside>
   );
 };
