@@ -69,6 +69,42 @@ const SaasSchools = () => {
     }
   };
 
+  // Add School Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newSchool, setNewSchool] = useState({
+    schoolName: '',
+    schoolCode: '',
+    principalName: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+
+  const handleAddSchool = async (e) => {
+    e.preventDefault();
+    setIsAdding(true);
+    setAddError('');
+    try {
+      await api.post('/auth/register', newSchool);
+      setIsAddModalOpen(false);
+      setNewSchool({
+        schoolName: '',
+        schoolCode: '',
+        principalName: '',
+        email: '',
+        phone: '',
+        password: ''
+      });
+      fetchSchools();
+    } catch (err) {
+      setAddError(err.response?.data?.message || 'Failed to add school');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
       <div className="flex items-center justify-between pb-4 border-b border-slate-700">
@@ -76,6 +112,12 @@ const SaasSchools = () => {
           <Building2 size={28} className="text-blue-400" />
           <h1 className="text-2xl font-semibold">Tenant Schools</h1>
         </div>
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          + Add New School
+        </button>
       </div>
 
       <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
@@ -120,7 +162,7 @@ const SaasSchools = () => {
                       </span>
                     </td>
                     <td className="p-4">
-                      {new Date(school.expiryDate).toLocaleDateString()}
+                      {school.expiryDate ? new Date(school.expiryDate).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded text-xs font-medium border ${
@@ -157,6 +199,97 @@ const SaasSchools = () => {
           </table>
         </div>
       </div>
+
+      {/* Add School Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50 sticky top-0 z-10">
+              <h3 className="text-lg font-semibold text-white">Register New Tenant School</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddSchool} className="p-6 space-y-4">
+              {addError && <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm">{addError}</div>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">School Name *</label>
+                  <input 
+                    type="text" required
+                    value={newSchool.schoolName}
+                    onChange={(e) => setNewSchool({...newSchool, schoolName: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">School Code (Unique ID) *</label>
+                  <input 
+                    type="text" required
+                    value={newSchool.schoolCode}
+                    onChange={(e) => setNewSchool({...newSchool, schoolCode: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Principal / Admin Name</label>
+                  <input 
+                    type="text" 
+                    value={newSchool.principalName}
+                    onChange={(e) => setNewSchool({...newSchool, principalName: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Contact Phone</label>
+                  <input 
+                    type="text" 
+                    value={newSchool.phone}
+                    onChange={(e) => setNewSchool({...newSchool, phone: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Admin Email *</label>
+                  <input 
+                    type="email" required
+                    value={newSchool.email}
+                    onChange={(e) => setNewSchool({...newSchool, email: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Admin Password *</label>
+                  <input 
+                    type="password" required minLength="6"
+                    value={newSchool.password}
+                    onChange={(e) => setNewSchool({...newSchool, password: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-800 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isAdding}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {isAdding ? 'Registering...' : 'Create School'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit School Modal */}
       {isEditModalOpen && editingSchool && (
@@ -198,7 +331,7 @@ const SaasSchools = () => {
                 <label className="block text-sm font-medium text-slate-400 mb-1">Expiry Date</label>
                 <input 
                   type="date" 
-                  value={editingSchool.expiryDate.split('T')[0]}
+                  value={editingSchool.expiryDate ? editingSchool.expiryDate.split('T')[0] : ''}
                   onChange={(e) => setEditingSchool({...editingSchool, expiryDate: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                 />
@@ -222,6 +355,7 @@ const SaasSchools = () => {
           </div>
         </div>
       )}
+
 
     </div>
   );

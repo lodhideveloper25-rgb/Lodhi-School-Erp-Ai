@@ -41,36 +41,6 @@ const Login = () => {
     }
   };
 
-  const setDemoUser = (role) => {
-    const roleEmails = {
-      superadmin: 'admin@lodherp.com',
-      admin: 'admin@lodherp.com',
-      principal: 'principal@lodherp.com',
-      teacher: 'teacher1@lodherp.com',
-      accountant: 'accountant@lodherp.com',
-      parent: 'parent1@lodherp.com',
-      student: 'student1@lodherp.com',
-      receptionist: 'reception@lodherp.com'
-    };
-
-    const rolePasswords = {
-      superadmin: 'adminpassword123',
-      admin: 'adminpassword123',
-      principal: 'principal123',
-      teacher: 'teacher123',
-      accountant: 'accountant123',
-      parent: 'parent123',
-      student: 'student123',
-      receptionist: 'reception123'
-    };
-
-    setFormData({
-      schoolCode: 'LODH001',
-      email: roleEmails[role] || 'admin@lodherp.com',
-      password: rolePasswords[role] || 'adminpassword123'
-    });
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-dark-bg relative overflow-hidden">
       {/* Background Orbs */}
@@ -160,21 +130,6 @@ const Login = () => {
             {loading ? 'Logging in...' : <><LogIn size={18} /> Login</>}
           </button>
         </form>
-
-        <div className="mt-8">
-          <p className="text-xs text-center text-slate-500 mb-4 uppercase tracking-widest font-bold">Quick Demo Login</p>
-          <div className="grid grid-cols-2 gap-2">
-            {['SuperAdmin', 'Teacher', 'Accountant', 'Parent'].map((role) => (
-              <button
-                key={role}
-                onClick={() => setDemoUser(role.toLowerCase())}
-                className="text-xs bg-slate-800/50 hover:bg-slate-800 text-slate-300 py-2 rounded border border-slate-700 transition-colors"
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
