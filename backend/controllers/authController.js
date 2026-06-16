@@ -77,6 +77,8 @@ const registerSchool = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
+        schoolCode: user.schoolCode,
         token: generateToken(user._id)
       }
     });
