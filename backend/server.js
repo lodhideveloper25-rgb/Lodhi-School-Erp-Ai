@@ -30,6 +30,8 @@ app.use('/api/whatsapp', require('./routes/whatsappRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/certificates', require('./routes/certificateRoutes'));
 app.use('/api/idcards', require('./routes/idcardRoutes'));
+app.use('/api/data', require('./routes/genericRoutes'));
+app.use('/api/saas', require('./routes/saasRoutes'));
 
 app.get('/', (req, res) => {
   res.send('LODH School ERP API is running...');
@@ -39,3 +41,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+module.exports = app;

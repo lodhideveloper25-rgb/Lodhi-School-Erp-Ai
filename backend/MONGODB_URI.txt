@@ -1,0 +1,1 @@
+mongodb+srv://lodhideveloper25_db_user:%40uMARHAYATLODHI.908@cluster0.olmtncm.mongodb.net/lodh_school_erp?retryWrites=true&w=majority

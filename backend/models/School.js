@@ -1,13 +1,28 @@
 const mongoose = require('mongoose');
 
 const schoolSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  schoolName: { type: String, required: true },
   schoolCode: { type: String, required: true, unique: true },
-  address: { type: String },
-  contactEmail: { type: String },
-  contactPhone: { type: String },
-  logoUrl: { type: String },
-  createdAt: { type: Date, default: Date.now }
-});
+  principalName: { type: String },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String },
+  
+  // SaaS Subscription Details
+  plan: { 
+    type: String, 
+    enum: ['Free', 'Basic', 'Premium', 'Enterprise'], 
+    default: 'Free' 
+  },
+  expiryDate: { type: Date },
+  status: { 
+    type: String, 
+    enum: ['Active', 'Suspended', 'Expired'], 
+    default: 'Active' 
+  },
+  
+  // Customization
+  logo: { type: String },
+  address: { type: String }
+}, { timestamps: true });
 
 module.exports = mongoose.model('School', schoolSchema);
